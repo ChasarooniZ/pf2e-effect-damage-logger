@@ -1,6 +1,6 @@
 {
-  "id": "module",
-  "title": "New Module",
+  "id": "pf2e-effect-damage-logger",
+  "title": "PF2e Effect & Damage Logger",
   "description": "",
   "version": "#{VERSION}#",
   "library": "false",
