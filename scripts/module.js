@@ -1,13 +1,11 @@
-Hooks.once('init', async function() {
+Hooks.once("init", async function () {});
 
-});
-
-Hooks.once('ready', async function() {
+Hooks.once("ready", async function () {
   Hooks.on("preCreateItem", async (item) => {
     if (item.type !== "condition" && item.type !== "effect") return;
     logEffect(item);
   });
-  
+
   Hooks.on("updateItem", async (item, changes) => {
     if (item.type !== "condition" && item.type !== "effect") return;
     if (
@@ -17,19 +15,23 @@ Hooks.once('ready', async function() {
       return;
     logEffect(item);
   });
-  
+
   Hooks.on("createChatMessage", async function (msg, _status, userid) {
     if (!msg?.isDamageRoll) return;
-    const split_type = "by-damage-type";
-    const dmg = getDamageList(msg?.rolls, split_type);
+    //const split_type = "none";
+    const dmg = msg?.rolls.total;
     const actor = game.actors.get(msg?.flags?.pf2e?.context?.actor);
     const now = new Date();
     console.log(
       getFormattedDateTime(now),
-      `${actor.name}, ${dmg.map((it) => `${it.value} ${it.type}`).join(", ")}`
+      `${actor.name}, damage${
+        msg?.flags?.pf2e?.context?.outcome === "criticalSuccess"
+          ? " Critical"
+          : ""
+      }`
     );
   });
-  
+
   function logEffect(item) {
     const actor = item.actor;
     let itemName = item.name;
@@ -41,12 +43,12 @@ Hooks.once('ready', async function() {
     const now = new Date();
     console.log(getFormattedDateTime(now), `${actor.name}, ${itemName}`);
   }
-  
+
   function getFormattedDateTime(now) {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
     const day = String(now.getDate()).padStart(2, "0");
-  
+
     const timeString = now
       .toLocaleTimeString([], {
         hour: "2-digit",
@@ -55,10 +57,10 @@ Hooks.once('ready', async function() {
         hour12: true,
       })
       .replace(" ", "");
-  
+
     return `[${month}/${day}/${year} - ${timeString}]`;
   }
-  
+
   function getDamageList(rolls, split_type) {
     switch (split_type) {
       case "by-damage-type":
@@ -70,7 +72,7 @@ Hooks.once('ready', async function() {
         return extractDamageInfoSimple(rolls);
     }
   }
-  
+
   function extractDamageInfoCombined(rolls) {
     return rolls.flatMap(
       (inp) =>
@@ -83,31 +85,31 @@ Hooks.once('ready', async function() {
         ) || []
     );
   }
-  
+
   function extractDamageInfoAll(rolls) {
     return rolls.flatMap(
       (inp) => inp?.terms?.flatMap((term) => extractTerm(term)) || []
     );
   }
-  
+
   function extractDamageInfoSimple(rolls) {
     return [{ type: "", value: rolls.total }];
   }
-  
+
   function extractTerm(term, flavor = "") {
     let result = [];
     const termName = term.constructor.name;
-  
+
     if (termProcessors[termName]) {
       result = termProcessors[termName](term, result, flavor);
     } else {
       console.error("Unrecognized Term when extracting parts", term);
       result.push({ value: term.total, type: term.flavor || flavor });
     }
-  
+
     return result;
   }
-  
+
   const termProcessors = {
     InstancePool: processInstancePool,
     DamageInstance: processDamageInstance,
@@ -116,17 +118,17 @@ Hooks.once('ready', async function() {
     Die: processDie,
     NumericTerm: processNumericTerm,
   };
-  
+
   function processGrouping(term, result, flavor) {
     return result.concat(extractTerm(term.term, term.flavor || flavor));
   }
-  
+
   function processInstancePool(term, result, flavor) {
     return result.concat(
       term.rolls.flatMap((roll) => extractTerm(roll, term.flavor || flavor))
     );
   }
-  
+
   function processDamageInstance(term, result, flavor) {
     result = term.terms.flatMap((item) =>
       extractTerm(item, term.types || flavor)
@@ -136,9 +138,12 @@ Hooks.once('ready', async function() {
       .filter((res) =>
         res?.type?.startsWith("persistent,") ? keepPersistent : true
       )
-      .map((r) => ({ value: r.value, type: r.type.replace(/persistent,/g, "") }));
+      .map((r) => ({
+        value: r.value,
+        type: r.type.replace(/persistent,/g, ""),
+      }));
   }
-  
+
   function processArithmeticExpression(term, result, flavor) {
     const operands = term.operands
       .map((op) => extractTerm(op, term.flavor || flavor))
@@ -159,7 +164,7 @@ Hooks.once('ready', async function() {
     }
     return result;
   }
-  
+
   function processDie(term, result, flavor) {
     return result.concat(
       term.results.map((dice) => ({
@@ -168,10 +173,9 @@ Hooks.once('ready', async function() {
       }))
     );
   }
-  
+
   function processNumericTerm(term, result, flavor) {
     result.push({ value: term.number, type: term.flavor || flavor });
     return result;
   }
-
 });
